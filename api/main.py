@@ -9,6 +9,8 @@ import sys
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import traceback
+
 try:
     from .db_config import get_connection
 except ImportError:
@@ -16,6 +18,17 @@ except ImportError:
 
 app = Flask(__name__)
 CORS(app)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Retorna JSON en lugar de HTML en caso de errores del servidor."""
+    # Para ver el log en consola o en Vercel
+    traceback.print_exc()
+    # Si es una excepcion HTTP de Werkzeug (ej. 404, 405), extraemos su codigo
+    code = 500
+    if hasattr(e, "code"):
+        code = e.code
+    return jsonify({"error": str(e), "message": getattr(e, "description", "Internal Server Error")}), code
 
 # ---------------------------------------------------------------------------
 # Endpoint principal: /api/datos (datos crudos del warehouse)

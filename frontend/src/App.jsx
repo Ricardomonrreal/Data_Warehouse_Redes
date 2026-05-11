@@ -43,6 +43,19 @@ function App() {
       const url = ENDPOINTS[tabId]
       if (!url) return
       const res = await fetch(`${API_BASE}${url}`)
+      
+      const contentType = res.headers.get("content-type");
+      if (!res.ok) {
+        if (contentType && contentType.includes("application/json")) {
+          const errJson = await res.json();
+          throw new Error(`Error del servidor HTTP ${res.status}: ${errJson.error || errJson.message || 'Error desconocido'}`);
+        }
+        throw new Error(`Error del servidor HTTP ${res.status}`);
+      }
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Respuesta inválida del servidor: se esperaba JSON pero se recibió ${contentType || 'desconocido'}`);
+      }
+      
       const json = await res.json()
       setData(prev => ({ ...prev, [tabId]: json }))
     } catch (err) {
