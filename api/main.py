@@ -18,13 +18,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 # Importar configuracion de BD desde el directorio server/
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
-from db_config import get_connection
+from .db_config import get_connection
 
 app = Flask(__name__)
 CORS(app)
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # Cache simple en memoria (evita re-leer CSVs grandes en cada request)
 _cache = {}
