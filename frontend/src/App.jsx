@@ -8,7 +8,7 @@ import GeoView from './views/GeoView'
 import SensoresView from './views/SensoresView'
 import DatosView from './views/DatosView'
 
-const API_BASE = 'http://127.0.0.1:5000'
+const API_BASE = '';
 
 const TABS = [
   { id: 'resumen',   label: 'Resumen',       icon: '📊' },
@@ -46,7 +46,7 @@ function App() {
       const json = await res.json()
       setData(prev => ({ ...prev, [tabId]: json }))
     } catch (err) {
-      setError('No se pudo conectar con la API. Asegurate de que este corriendo en el puerto 5000.')
+      setError('Error al conectar: ' + err.message)
       console.error(err)
     } finally {
       setLoadingTab(null)
