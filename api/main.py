@@ -9,7 +9,10 @@ import sys
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from .db_config import get_connection
+try:
+    from .db_config import get_connection
+except ImportError:
+    from db_config import get_connection
 
 app = Flask(__name__)
 CORS(app)

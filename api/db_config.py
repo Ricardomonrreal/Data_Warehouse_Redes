@@ -10,9 +10,15 @@ from dotenv import load_dotenv
 # Cargar variables desde .env (busca en el directorio del script)
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
+db_port_env = os.getenv("DB_PORT")
+try:
+    db_port = int(db_port_env) if db_port_env else 5432
+except ValueError:
+    db_port = 5432
+
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
-    "port": int(os.getenv("DB_PORT", 5432)),
+    "port": db_port,
     "database": os.getenv("DB_NAME", "postgres"),
     "user": os.getenv("DB_USER", "postgres"),
     "password": os.getenv("DB_PASSWORD"),
