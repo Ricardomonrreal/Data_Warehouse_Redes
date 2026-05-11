@@ -1,57 +1,18 @@
 """
-API REST - Fase 3
-Expone los datos almacenados en PostgreSQL (Supabase) y analisis
-de los datasets CSV mediante endpoints HTTP.
-Utiliza Flask para servir datos en formato JSON.
+API REST - Fase 3 (SQL Dynamic Analytics)
+Expone los datos y analytics almacenados en PostgreSQL (Supabase) mediante endpoints HTTP.
 """
 
 import os
-import sys
-import csv
 import json
-import random
-import time as _time
-from collections import Counter, defaultdict
-from datetime import datetime
+import sys
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-
-# Importar configuracion de BD desde el directorio server/
 from .db_config import get_connection
 
 app = Flask(__name__)
 CORS(app)
-
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
-
-# Cache simple en memoria (evita re-leer CSVs grandes en cada request)
-_cache = {}
-_CACHE_TTL = 120  # segundos
-
-
-# ---------------------------------------------------------------------------
-# Helpers para leer CSVs
-# ---------------------------------------------------------------------------
-
-def read_csv(filename, limit=None):
-    """Lee un CSV y retorna una lista de diccionarios (con cache)."""
-    cache_key = f"{filename}_{limit}"
-    now = _time.time()
-    if cache_key in _cache and (now - _cache[cache_key]["ts"]) < _CACHE_TTL:
-        return _cache[cache_key]["data"]
-
-    filepath = os.path.join(DATA_DIR, filename)
-    rows = []
-    with open(filepath, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for i, row in enumerate(reader):
-            if limit and i >= limit:
-                break
-            rows.append(row)
-    _cache[cache_key] = {"data": rows, "ts": now}
-    return rows
-
 
 # ---------------------------------------------------------------------------
 # Endpoint principal: /api/datos (datos crudos del warehouse)
@@ -59,13 +20,6 @@ def read_csv(filename, limit=None):
 
 @app.route("/api/datos", methods=["GET"])
 def obtener_datos():
-    """
-    Retorna los datos almacenados en datos_warehouse.
-    Parametros opcionales:
-      - origen: filtrar por 'TCP' o 'UDP'
-      - limite: cantidad maxima de registros (default 500)
-      - offset: paginacion
-    """
     origen = request.args.get("origen")
     limite = request.args.get("limite", 500, type=int)
     offset = request.args.get("offset", 0, type=int)
@@ -87,15 +41,7 @@ def obtener_datos():
         )
 
     rows = cur.fetchall()
-    datos = [
-        {
-            "id": r[0],
-            "origen": r[1],
-            "contenido": r[2],
-            "fecha": r[3].isoformat() if r[3] else None,
-        }
-        for r in rows
-    ]
+    datos = [{"id": r[0], "origen": r[1], "contenido": r[2], "fecha": r[3].isoformat() if r[3] else None} for r in rows]
 
     cur.close()
     conn.close()
@@ -108,51 +54,29 @@ def obtener_datos():
 
 @app.route("/api/datos/resumen", methods=["GET"])
 def resumen():
-    """Retorna estadisticas generales del warehouse."""
     conn = get_connection()
     cur = conn.cursor()
 
-    # Total por origen
-    cur.execute(
-        "SELECT origen, COUNT(*) FROM datos_warehouse GROUP BY origen"
-    )
+    cur.execute("SELECT origen, COUNT(*) FROM datos_warehouse GROUP BY origen")
     por_origen = {r[0]: r[1] for r in cur.fetchall()}
 
-    # Total general
     cur.execute("SELECT COUNT(*) FROM datos_warehouse")
     total = cur.fetchone()[0]
 
-    # Rango de fechas
-    cur.execute(
-        "SELECT MIN(fecha), MAX(fecha) FROM datos_warehouse"
-    )
+    cur.execute("SELECT MIN(fecha), MAX(fecha) FROM datos_warehouse")
     fecha_min, fecha_max = cur.fetchone()
 
-    # Ingesta por minuto (para grafica de timeline)
     cur.execute("""
-        SELECT
-            date_trunc('minute', fecha) AS minuto,
-            origen,
-            COUNT(*) AS cantidad
-        FROM datos_warehouse
-        GROUP BY minuto, origen
-        ORDER BY minuto
+        SELECT date_trunc('minute', fecha) AS minuto, origen, COUNT(*) AS cantidad
+        FROM datos_warehouse GROUP BY minuto, origen ORDER BY minuto
     """)
-    timeline = [
-        {
-            "timestamp": r[0].isoformat() if r[0] else None,
-            "origen": r[1],
-            "cantidad": r[2],
-        }
-        for r in cur.fetchall()
-    ]
+    timeline = [{"timestamp": r[0].isoformat() if r[0] else None, "origen": r[1], "cantidad": r[2]} for r in cur.fetchall()]
 
     cur.close()
     conn.close()
 
     return jsonify({
-        "total": total,
-        "por_origen": por_origen,
+        "total": total, "por_origen": por_origen,
         "fecha_inicio": fecha_min.isoformat() if fecha_min else None,
         "fecha_fin": fecha_max.isoformat() if fecha_max else None,
         "timeline": timeline,
@@ -165,17 +89,11 @@ def resumen():
 
 @app.route("/api/datos/sensores", methods=["GET"])
 def obtener_sensores():
-    """Parsea los registros UDP (JSON de sensores)."""
     limite = request.args.get("limite", 200, type=int)
-
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute(
-        "SELECT contenido, fecha FROM datos_warehouse "
-        "WHERE origen = 'UDP' ORDER BY fecha LIMIT %s",
-        (limite,),
-    )
+    cur.execute("SELECT contenido, fecha FROM datos_warehouse WHERE origen = 'UDP' ORDER BY fecha LIMIT %s", (limite,))
 
     sensores = []
     for row in cur.fetchall():
@@ -188,346 +106,317 @@ def obtener_sensores():
 
     cur.close()
     conn.close()
-
     return jsonify({"total": len(sensores), "sensores": sensores})
 
 
 # ---------------------------------------------------------------------------
-# Endpoint: Analisis de Ordenes
+# Endpoint: Analisis de Ordenes (SQL Dinamico)
 # ---------------------------------------------------------------------------
 
 @app.route("/api/analytics/ordenes", methods=["GET"])
 def analytics_ordenes():
-    """
-    Analisis de ordenes: distribucion por estado, ordenes por mes,
-    tiempos de entrega promedio, etc.
-    """
-    orders = read_csv("olist_orders_dataset.csv", limit=20000)
+    conn = get_connection()
+    cur = conn.cursor()
 
-    # Distribucion por estado
-    status_counts = Counter(o["order_status"] for o in orders)
+    cur.execute("SELECT COUNT(*) FROM olist_orders")
+    total_ordenes = cur.fetchone()[0]
 
-    # Ordenes por mes (YYYY-MM)
-    por_mes = Counter()
-    for o in orders:
-        ts = o.get("order_purchase_timestamp", "")
-        if ts and len(ts) >= 7:
-            por_mes[ts[:7]] += 1
-    por_mes_sorted = dict(sorted(por_mes.items()))
+    cur.execute("SELECT order_status, COUNT(*) FROM olist_orders GROUP BY order_status")
+    estados = dict(cur.fetchall())
 
-    # Tiempos de entrega (dias entre compra y entrega al cliente)
-    tiempos_entrega = []
-    for o in orders:
-        compra = o.get("order_purchase_timestamp", "")
-        entrega = o.get("order_delivered_customer_date", "")
-        if compra and entrega:
-            try:
-                dt_compra = datetime.strptime(compra[:19], "%Y-%m-%d %H:%M:%S")
-                dt_entrega = datetime.strptime(entrega[:19], "%Y-%m-%d %H:%M:%S")
-                dias = (dt_entrega - dt_compra).days
-                if 0 <= dias <= 120:
-                    tiempos_entrega.append(dias)
-            except ValueError:
-                pass
+    cur.execute("""
+        SELECT to_char(order_purchase_timestamp, 'YYYY-MM') as mes, COUNT(*) 
+        FROM olist_orders 
+        WHERE order_purchase_timestamp IS NOT NULL
+        GROUP BY mes ORDER BY mes
+    """)
+    ordenes_por_mes = dict(cur.fetchall())
 
-    # Histograma de tiempos de entrega (agrupado por rangos)
-    rangos = {"0-5": 0, "6-10": 0, "11-15": 0, "16-20": 0, "21-30": 0, "31-60": 0, "60+": 0}
-    for d in tiempos_entrega:
-        if d <= 5: rangos["0-5"] += 1
-        elif d <= 10: rangos["6-10"] += 1
-        elif d <= 15: rangos["11-15"] += 1
-        elif d <= 20: rangos["16-20"] += 1
-        elif d <= 30: rangos["21-30"] += 1
-        elif d <= 60: rangos["31-60"] += 1
-        else: rangos["60+"] += 1
+    cur.execute("""
+        SELECT AVG(extract(epoch from (order_delivered_customer_date - order_purchase_timestamp))/86400) 
+        FROM olist_orders 
+        WHERE order_delivered_customer_date IS NOT NULL AND order_purchase_timestamp IS NOT NULL 
+        AND extract(epoch from (order_delivered_customer_date - order_purchase_timestamp))/86400 BETWEEN 0 AND 120
+    """)
+    avg_row = cur.fetchone()
+    promedio_entrega_dias = round(float(avg_row[0]), 1) if avg_row and avg_row[0] else 0
 
-    # Porcentaje de entrega a tiempo vs tarde
-    entregas_a_tiempo = 0
-    entregas_tarde = 0
-    for o in orders:
-        entrega = o.get("order_delivered_customer_date", "")
-        estimada = o.get("order_estimated_delivery_date", "")
-        if entrega and estimada:
-            try:
-                dt_ent = datetime.strptime(entrega[:19], "%Y-%m-%d %H:%M:%S")
-                dt_est = datetime.strptime(estimada[:19], "%Y-%m-%d %H:%M:%S")
-                if dt_ent <= dt_est:
-                    entregas_a_tiempo += 1
-                else:
-                    entregas_tarde += 1
-            except ValueError:
-                pass
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN dias <= 5 THEN 1 ELSE 0 END) as "0-5",
+            SUM(CASE WHEN dias > 5 AND dias <= 10 THEN 1 ELSE 0 END) as "6-10",
+            SUM(CASE WHEN dias > 10 AND dias <= 15 THEN 1 ELSE 0 END) as "11-15",
+            SUM(CASE WHEN dias > 15 AND dias <= 20 THEN 1 ELSE 0 END) as "16-20",
+            SUM(CASE WHEN dias > 20 AND dias <= 30 THEN 1 ELSE 0 END) as "21-30",
+            SUM(CASE WHEN dias > 30 AND dias <= 60 THEN 1 ELSE 0 END) as "31-60",
+            SUM(CASE WHEN dias > 60 THEN 1 ELSE 0 END) as "60+"
+        FROM (
+            SELECT extract(epoch from (order_delivered_customer_date - order_purchase_timestamp))/86400 as dias
+            FROM olist_orders 
+            WHERE order_delivered_customer_date IS NOT NULL AND order_purchase_timestamp IS NOT NULL
+        ) t WHERE dias BETWEEN 0 AND 120
+    """)
+    hist_row = cur.fetchone()
+    if hist_row:
+        rangos = {
+            "0-5": hist_row[0] or 0, "6-10": hist_row[1] or 0, "11-15": hist_row[2] or 0,
+            "16-20": hist_row[3] or 0, "21-30": hist_row[4] or 0, "31-60": hist_row[5] or 0,
+            "60+": hist_row[6] or 0
+        }
+    else:
+        rangos = {"0-5": 0, "6-10": 0, "11-15": 0, "16-20": 0, "21-30": 0, "31-60": 0, "60+": 0}
 
-    promedio_entrega = round(sum(tiempos_entrega) / len(tiempos_entrega), 1) if tiempos_entrega else 0
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN order_delivered_customer_date <= order_estimated_delivery_date THEN 1 ELSE 0 END),
+            SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END)
+        FROM olist_orders
+        WHERE order_delivered_customer_date IS NOT NULL AND order_estimated_delivery_date IS NOT NULL
+    """)
+    tiempo_row = cur.fetchone()
+    entregas_a_tiempo = tiempo_row[0] or 0 if tiempo_row else 0
+    entregas_tarde = tiempo_row[1] or 0 if tiempo_row else 0
+
+    cur.close()
+    conn.close()
 
     return jsonify({
-        "total_ordenes": len(orders),
-        "estados": dict(status_counts),
-        "ordenes_por_mes": por_mes_sorted,
-        "promedio_entrega_dias": promedio_entrega,
-        "histograma_entrega": rangos,
-        "entregas_a_tiempo": entregas_a_tiempo,
-        "entregas_tarde": entregas_tarde,
+        "total_ordenes": total_ordenes, "estados": estados, "ordenes_por_mes": ordenes_por_mes,
+        "promedio_entrega_dias": promedio_entrega_dias, "histograma_entrega": rangos,
+        "entregas_a_tiempo": entregas_a_tiempo, "entregas_tarde": entregas_tarde,
     })
 
 
 # ---------------------------------------------------------------------------
-# Endpoint: Analisis de Productos
+# Endpoint: Analisis de Productos (SQL Dinamico)
 # ---------------------------------------------------------------------------
 
 @app.route("/api/analytics/productos", methods=["GET"])
 def analytics_productos():
-    """
-    Analisis de productos: top categorias, distribucion de peso,
-    fotos por producto, dimensiones.
-    """
-    products = read_csv("olist_products_dataset.csv")
+    conn = get_connection()
+    cur = conn.cursor()
 
-    # Traduccion de categorias (PT -> EN)
-    traducciones = {}
-    try:
-        trad_path = os.path.join(DATA_DIR, "product_category_name_translation.csv")
-        with open(trad_path, "r", encoding="utf-8-sig") as f:
-            for row in csv.DictReader(f):
-                traducciones[row["product_category_name"]] = row["product_category_name_english"]
-    except Exception:
-        pass
+    cur.execute("SELECT COUNT(*) FROM olist_products")
+    total_productos = cur.fetchone()[0]
 
-    # Top 15 categorias
-    cats = Counter(p["product_category_name"] for p in products if p["product_category_name"])
-    top_categorias = dict(cats.most_common(15))
+    cur.execute("SELECT COUNT(DISTINCT product_category_name) FROM olist_products WHERE product_category_name IS NOT NULL")
+    total_categorias = cur.fetchone()[0]
 
-    # Distribucion de peso (agrupado en rangos de gramos)
-    pesos = []
-    rangos_peso = {"0-500g": 0, "500g-1kg": 0, "1-2kg": 0, "2-5kg": 0, "5-10kg": 0, "10kg+": 0}
-    for p in products:
-        w = p.get("product_weight_g", "")
-        if w:
-            try:
-                w = int(w)
-                pesos.append(w)
-                if w <= 500: rangos_peso["0-500g"] += 1
-                elif w <= 1000: rangos_peso["500g-1kg"] += 1
-                elif w <= 2000: rangos_peso["1-2kg"] += 1
-                elif w <= 5000: rangos_peso["2-5kg"] += 1
-                elif w <= 10000: rangos_peso["5-10kg"] += 1
-                else: rangos_peso["10kg+"] += 1
-            except ValueError:
-                pass
+    cur.execute("""
+        SELECT product_category_name, COUNT(*) as c 
+        FROM olist_products 
+        WHERE product_category_name IS NOT NULL 
+        GROUP BY product_category_name 
+        ORDER BY c DESC LIMIT 15
+    """)
+    top_categorias = dict(cur.fetchall())
 
-    # Promedio de fotos por producto
-    fotos = [int(p["product_photos_qty"]) for p in products if p.get("product_photos_qty")]
-    promedio_fotos = round(sum(fotos) / len(fotos), 1) if fotos else 0
+    cur.execute("SELECT product_category_name, product_category_name_english FROM product_category_translation")
+    traducciones = dict(cur.fetchall())
 
-    # Distribucion de fotos
-    dist_fotos = Counter(int(p["product_photos_qty"]) for p in products if p.get("product_photos_qty"))
-    dist_fotos_sorted = dict(sorted(dist_fotos.items()))
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN product_weight_g <= 500 THEN 1 ELSE 0 END) as "0-500g",
+            SUM(CASE WHEN product_weight_g > 500 AND product_weight_g <= 1000 THEN 1 ELSE 0 END) as "500g-1kg",
+            SUM(CASE WHEN product_weight_g > 1000 AND product_weight_g <= 2000 THEN 1 ELSE 0 END) as "1-2kg",
+            SUM(CASE WHEN product_weight_g > 2000 AND product_weight_g <= 5000 THEN 1 ELSE 0 END) as "2-5kg",
+            SUM(CASE WHEN product_weight_g > 5000 AND product_weight_g <= 10000 THEN 1 ELSE 0 END) as "5-10kg",
+            SUM(CASE WHEN product_weight_g > 10000 THEN 1 ELSE 0 END) as "10kg+"
+        FROM olist_products
+        WHERE product_weight_g IS NOT NULL
+    """)
+    w_row = cur.fetchone()
+    if w_row:
+        rangos_peso = {
+            "0-500g": w_row[0] or 0, "500g-1kg": w_row[1] or 0, "1-2kg": w_row[2] or 0,
+            "2-5kg": w_row[3] or 0, "5-10kg": w_row[4] or 0, "10kg+": w_row[5] or 0
+        }
+    else:
+        rangos_peso = {"0-500g":0, "500g-1kg":0, "1-2kg":0, "2-5kg":0, "5-10kg":0, "10kg+":0}
 
-    # Productos con descripcion mas larga vs corta
-    desc_lengths = [int(p["product_description_lenght"]) for p in products if p.get("product_description_lenght")]
-    promedio_desc = round(sum(desc_lengths) / len(desc_lengths)) if desc_lengths else 0
+    cur.execute("SELECT AVG(product_weight_g) FROM olist_products WHERE product_weight_g IS NOT NULL")
+    avg_w = cur.fetchone()[0]
+    peso_promedio = int(avg_w) if avg_w else 0
 
-    peso_promedio = round(sum(pesos) / len(pesos)) if pesos else 0
+    cur.execute("SELECT AVG(product_photos_qty) FROM olist_products WHERE product_photos_qty IS NOT NULL")
+    avg_ph = cur.fetchone()[0]
+    promedio_fotos = round(float(avg_ph), 1) if avg_ph else 0
+
+    cur.execute("SELECT product_photos_qty, COUNT(*) FROM olist_products WHERE product_photos_qty IS NOT NULL GROUP BY product_photos_qty ORDER BY product_photos_qty")
+    distribucion_fotos = {str(int(k)): v for k, v in cur.fetchall()}
+
+    cur.execute("SELECT AVG(product_description_lenght) FROM olist_products WHERE product_description_lenght IS NOT NULL")
+    avg_desc = cur.fetchone()[0]
+    promedio_largo_descripcion = int(avg_desc) if avg_desc else 0
+
+    cur.close()
+    conn.close()
 
     return jsonify({
-        "total_productos": len(products),
-        "total_categorias": len(cats),
-        "top_categorias": top_categorias,
-        "traducciones": traducciones,
-        "rangos_peso": rangos_peso,
-        "peso_promedio_g": peso_promedio,
-        "promedio_fotos": promedio_fotos,
-        "distribucion_fotos": dist_fotos_sorted,
-        "promedio_largo_descripcion": promedio_desc,
+        "total_productos": total_productos, "total_categorias": total_categorias, "top_categorias": top_categorias,
+        "traducciones": traducciones, "rangos_peso": rangos_peso, "peso_promedio_g": peso_promedio,
+        "promedio_fotos": promedio_fotos, "distribucion_fotos": distribucion_fotos,
+        "promedio_largo_descripcion": promedio_largo_descripcion,
     })
 
 
 # ---------------------------------------------------------------------------
-# Endpoint: Analisis de Items de Orden (precios y envio)
+# Endpoint: Analisis de Items (SQL Dinamico)
 # ---------------------------------------------------------------------------
 
 @app.route("/api/analytics/items", methods=["GET"])
 def analytics_items():
-    """
-    Analisis de items: distribucion de precios, costos de envio,
-    relacion precio-envio, top productos mas caros.
-    """
-    items = read_csv("olist_order_items_dataset.csv")
+    conn = get_connection()
+    cur = conn.cursor()
 
-    precios = []
-    envios = []
-    for it in items:
-        try:
-            p = float(it["price"])
-            f = float(it["freight_value"])
-            precios.append(p)
-            envios.append(f)
-        except (ValueError, KeyError):
-            pass
+    cur.execute("SELECT COUNT(*) FROM olist_order_items")
+    total_items = cur.fetchone()[0]
 
-    # Rangos de precio
-    rangos_precio = {
-        "$0-25": 0, "$25-50": 0, "$50-100": 0,
-        "$100-200": 0, "$200-500": 0, "$500+": 0
-    }
-    for p in precios:
-        if p <= 25: rangos_precio["$0-25"] += 1
-        elif p <= 50: rangos_precio["$25-50"] += 1
-        elif p <= 100: rangos_precio["$50-100"] += 1
-        elif p <= 200: rangos_precio["$100-200"] += 1
-        elif p <= 500: rangos_precio["$200-500"] += 1
-        else: rangos_precio["$500+"] += 1
+    cur.execute("SELECT SUM(price), SUM(freight_value), AVG(price), AVG(freight_value), MAX(price), MAX(freight_value) FROM olist_order_items")
+    stats = cur.fetchone()
+    ingreso_total = round(float(stats[0] or 0), 2)
+    envio_total = round(float(stats[1] or 0), 2)
+    precio_promedio = round(float(stats[2] or 0), 2)
+    envio_promedio = round(float(stats[3] or 0), 2)
+    precio_max = float(stats[4] or 0)
+    envio_max = float(stats[5] or 0)
 
-    # Rangos de costo de envio
-    rangos_envio = {
-        "$0-10": 0, "$10-20": 0, "$20-30": 0,
-        "$30-50": 0, "$50-100": 0, "$100+": 0
-    }
-    for f in envios:
-        if f <= 10: rangos_envio["$0-10"] += 1
-        elif f <= 20: rangos_envio["$10-20"] += 1
-        elif f <= 30: rangos_envio["$20-30"] += 1
-        elif f <= 50: rangos_envio["$30-50"] += 1
-        elif f <= 100: rangos_envio["$50-100"] += 1
-        else: rangos_envio["$100+"] += 1
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN price <= 25 THEN 1 ELSE 0 END) as "$0-25",
+            SUM(CASE WHEN price > 25 AND price <= 50 THEN 1 ELSE 0 END) as "$25-50",
+            SUM(CASE WHEN price > 50 AND price <= 100 THEN 1 ELSE 0 END) as "$50-100",
+            SUM(CASE WHEN price > 100 AND price <= 200 THEN 1 ELSE 0 END) as "$100-200",
+            SUM(CASE WHEN price > 200 AND price <= 500 THEN 1 ELSE 0 END) as "$200-500",
+            SUM(CASE WHEN price > 500 THEN 1 ELSE 0 END) as "$500+"
+        FROM olist_order_items
+    """)
+    p_row = cur.fetchone()
+    if p_row:
+        rangos_precio = {
+            "$0-25": p_row[0] or 0, "$25-50": p_row[1] or 0, "$50-100": p_row[2] or 0,
+            "$100-200": p_row[3] or 0, "$200-500": p_row[4] or 0, "$500+": p_row[5] or 0
+        }
+    else:
+        rangos_precio = {"$0-25":0, "$25-50":0, "$50-100":0, "$100-200":0, "$200-500":0, "$500+":0}
 
-    # Porcentaje de envio sobre precio (ratio)
-    ratios = []
-    for it in items:
-        try:
-            p = float(it["price"])
-            f = float(it["freight_value"])
-            if p > 0:
-                ratios.append(round(f / p * 100, 1))
-        except (ValueError, KeyError, ZeroDivisionError):
-            pass
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN freight_value <= 10 THEN 1 ELSE 0 END) as "$0-10",
+            SUM(CASE WHEN freight_value > 10 AND freight_value <= 20 THEN 1 ELSE 0 END) as "$10-20",
+            SUM(CASE WHEN freight_value > 20 AND freight_value <= 30 THEN 1 ELSE 0 END) as "$20-30",
+            SUM(CASE WHEN freight_value > 30 AND freight_value <= 50 THEN 1 ELSE 0 END) as "$30-50",
+            SUM(CASE WHEN freight_value > 50 AND freight_value <= 100 THEN 1 ELSE 0 END) as "$50-100",
+            SUM(CASE WHEN freight_value > 100 THEN 1 ELSE 0 END) as "$100+"
+        FROM olist_order_items
+    """)
+    f_row = cur.fetchone()
+    if f_row:
+        rangos_envio = {
+            "$0-10": f_row[0] or 0, "$10-20": f_row[1] or 0, "$20-30": f_row[2] or 0,
+            "$30-50": f_row[3] or 0, "$50-100": f_row[4] or 0, "$100+": f_row[5] or 0
+        }
+    else:
+        rangos_envio = {"$0-10":0, "$10-20":0, "$20-30":0, "$30-50":0, "$50-100":0, "$100+":0}
 
-    # Distribucion del ratio envio/precio
-    rangos_ratio = {"0-10%": 0, "10-20%": 0, "20-30%": 0, "30-50%": 0, "50-100%": 0, "100%+": 0}
-    for r in ratios:
-        if r <= 10: rangos_ratio["0-10%"] += 1
-        elif r <= 20: rangos_ratio["10-20%"] += 1
-        elif r <= 30: rangos_ratio["20-30%"] += 1
-        elif r <= 50: rangos_ratio["30-50%"] += 1
-        elif r <= 100: rangos_ratio["50-100%"] += 1
-        else: rangos_ratio["100%+"] += 1
+    cur.execute("""
+        SELECT 
+            SUM(CASE WHEN r <= 10 THEN 1 ELSE 0 END) as "0-10%",
+            SUM(CASE WHEN r > 10 AND r <= 20 THEN 1 ELSE 0 END) as "10-20%",
+            SUM(CASE WHEN r > 20 AND r <= 30 THEN 1 ELSE 0 END) as "20-30%",
+            SUM(CASE WHEN r > 30 AND r <= 50 THEN 1 ELSE 0 END) as "30-50%",
+            SUM(CASE WHEN r > 50 AND r <= 100 THEN 1 ELSE 0 END) as "50-100%",
+            SUM(CASE WHEN r > 100 THEN 1 ELSE 0 END) as "100%+"
+        FROM (
+            SELECT (freight_value / price * 100) as r
+            FROM olist_order_items WHERE price > 0
+        ) t
+    """)
+    r_row = cur.fetchone()
+    if r_row:
+        rangos_ratio = {
+            "0-10%": r_row[0] or 0, "10-20%": r_row[1] or 0, "20-30%": r_row[2] or 0,
+            "30-50%": r_row[3] or 0, "50-100%": r_row[4] or 0, "100%+": r_row[5] or 0
+        }
+    else:
+        rangos_ratio = {"0-10%":0, "10-20%":0, "20-30%":0, "30-50%":0, "50-100%":0, "100%+":0}
 
-    # Ingreso total y envio total
-    ingreso_total = round(sum(precios), 2)
-    envio_total = round(sum(envios), 2)
+    cur.execute("SELECT price, freight_value FROM olist_order_items TABLESAMPLE SYSTEM(1) LIMIT 150")
+    scatter_sample = [{"precio": float(r[0]), "envio": float(r[1])} for r in cur.fetchall()]
 
-    # Scatter data: muestra de precio vs envio (150 puntos)
-    scatter_sample = []
-    sample_indices = random.sample(range(len(items)), min(150, len(items)))
-    for i in sample_indices:
-        try:
-            scatter_sample.append({
-                "precio": float(items[i]["price"]),
-                "envio": float(items[i]["freight_value"]),
-            })
-        except (ValueError, KeyError):
-            pass
+    cur.close()
+    conn.close()
 
     return jsonify({
-        "total_items": len(items),
-        "ingreso_total": ingreso_total,
-        "envio_total": envio_total,
-        "precio_promedio": round(sum(precios) / len(precios), 2) if precios else 0,
-        "envio_promedio": round(sum(envios) / len(envios), 2) if envios else 0,
-        "precio_max": max(precios) if precios else 0,
-        "envio_max": max(envios) if envios else 0,
-        "rangos_precio": rangos_precio,
-        "rangos_envio": rangos_envio,
-        "rangos_ratio_envio": rangos_ratio,
-        "scatter_precio_envio": scatter_sample,
+        "total_items": total_items, "ingreso_total": ingreso_total, "envio_total": envio_total,
+        "precio_promedio": precio_promedio, "envio_promedio": envio_promedio,
+        "precio_max": precio_max, "envio_max": envio_max,
+        "rangos_precio": rangos_precio, "rangos_envio": rangos_envio,
+        "rangos_ratio_envio": rangos_ratio, "scatter_precio_envio": scatter_sample,
     })
 
 
 # ---------------------------------------------------------------------------
-# Endpoint: Analisis de Geolocalizacion
+# Endpoint: Analisis de Geolocalizacion (SQL Dinamico)
 # ---------------------------------------------------------------------------
 
 @app.route("/api/analytics/geo", methods=["GET"])
 def analytics_geo():
-    """
-    Analisis de geolocalizacion: distribucion por estado,
-    top ciudades, datos para mapa de calor.
-    """
-    geo = read_csv("olist_geolocation_dataset.csv", limit=50000)
+    conn = get_connection()
+    cur = conn.cursor()
 
-    # Distribucion por estado
-    estados = Counter(g["geolocation_state"] for g in geo if g.get("geolocation_state"))
-    top_estados = dict(estados.most_common(15))
+    cur.execute("SELECT COUNT(*) FROM olist_geolocation")
+    total_registros = cur.fetchone()[0]
 
-    # Top 20 ciudades
-    ciudades = Counter(g["geolocation_city"] for g in geo if g.get("geolocation_city"))
-    top_ciudades = dict(ciudades.most_common(20))
+    cur.execute("SELECT COUNT(DISTINCT geolocation_state) FROM olist_geolocation WHERE geolocation_state IS NOT NULL")
+    total_estados = cur.fetchone()[0]
 
-    # Puntos para mapa (muestra de coordenadas, 1 por cada 50)
-    puntos_mapa = []
-    for i, g in enumerate(geo):
-        if i % 50 == 0:
-            try:
-                puntos_mapa.append({
-                    "lat": float(g["geolocation_lat"]),
-                    "lng": float(g["geolocation_lng"]),
-                    "city": g["geolocation_city"],
-                    "state": g["geolocation_state"],
-                })
-            except (ValueError, KeyError):
-                pass
+    cur.execute("SELECT COUNT(DISTINCT geolocation_city) FROM olist_geolocation WHERE geolocation_city IS NOT NULL")
+    total_ciudades = cur.fetchone()[0]
 
-    # Conteo por estado para el mapa (con coordenada promedio)
-    state_coords = defaultdict(lambda: {"lats": [], "lngs": [], "count": 0})
-    for g in geo:
-        st = g.get("geolocation_state", "")
-        if st:
-            try:
-                state_coords[st]["lats"].append(float(g["geolocation_lat"]))
-                state_coords[st]["lngs"].append(float(g["geolocation_lng"]))
-                state_coords[st]["count"] += 1
-            except ValueError:
-                pass
+    cur.execute("""
+        SELECT geolocation_state, COUNT(*) as c 
+        FROM olist_geolocation 
+        WHERE geolocation_state IS NOT NULL 
+        GROUP BY geolocation_state ORDER BY c DESC LIMIT 15
+    """)
+    top_estados = dict(cur.fetchall())
 
-    estados_mapa = []
-    for st, data in state_coords.items():
-        if data["lats"]:
-            estados_mapa.append({
-                "state": st,
-                "lat": round(sum(data["lats"]) / len(data["lats"]), 4),
-                "lng": round(sum(data["lngs"]) / len(data["lngs"]), 4),
-                "count": data["count"],
-            })
+    cur.execute("""
+        SELECT geolocation_city, COUNT(*) as c 
+        FROM olist_geolocation 
+        WHERE geolocation_city IS NOT NULL 
+        GROUP BY geolocation_city ORDER BY c DESC LIMIT 20
+    """)
+    top_ciudades = dict(cur.fetchall())
 
-    estados_mapa.sort(key=lambda x: x["count"], reverse=True)
+    cur.execute("""
+        SELECT geolocation_lat, geolocation_lng, geolocation_city, geolocation_state
+        FROM olist_geolocation
+        TABLESAMPLE SYSTEM(1)
+        LIMIT 200
+    """)
+    puntos_mapa = [{"lat": float(r[0]), "lng": float(r[1]), "city": r[2], "state": r[3]} for r in cur.fetchall()]
+
+    cur.execute("""
+        SELECT geolocation_state, AVG(geolocation_lat), AVG(geolocation_lng), COUNT(*) as c
+        FROM olist_geolocation
+        WHERE geolocation_state IS NOT NULL AND geolocation_lat IS NOT NULL AND geolocation_lng IS NOT NULL
+        GROUP BY geolocation_state ORDER BY c DESC
+    """)
+    estados_mapa = [{"state": r[0], "lat": round(float(r[1]), 4), "lng": round(float(r[2]), 4), "count": r[3]} for r in cur.fetchall()]
+
+    cur.close()
+    conn.close()
 
     return jsonify({
-        "total_registros": len(geo),
-        "total_estados": len(estados),
-        "total_ciudades": len(ciudades),
-        "top_estados": top_estados,
-        "top_ciudades": top_ciudades,
-        "puntos_mapa": puntos_mapa[:200],
-        "estados_mapa": estados_mapa,
+        "total_registros": total_registros, "total_estados": total_estados, "total_ciudades": total_ciudades,
+        "top_estados": top_estados, "top_ciudades": top_ciudades, "puntos_mapa": puntos_mapa, "estados_mapa": estados_mapa,
     })
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
 if __name__ == "__main__":
     print("=" * 55)
-    print("  API REST - Data Warehouse Simulation")
+    print("  API REST - Data Warehouse Simulation (SQL Dynamic)")
     print("=" * 55)
-    print()
-    print("Endpoints disponibles:")
-    print("  GET /api/datos              - Datos crudos (paginado)")
-    print("  GET /api/datos/resumen      - Estadisticas generales")
-    print("  GET /api/datos/sensores     - Sensores UDP parseados")
-    print("  GET /api/analytics/ordenes  - Analisis de ordenes")
-    print("  GET /api/analytics/productos- Analisis de productos")
-    print("  GET /api/analytics/items    - Precios y costos de envio")
-    print("  GET /api/analytics/geo      - Geolocalizacion")
-    print()
     app.run(host="0.0.0.0", port=5000, debug=True)

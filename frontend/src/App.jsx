@@ -11,23 +11,23 @@ import DatosView from './views/DatosView'
 const API_BASE = '';
 
 const TABS = [
-  { id: 'resumen',   label: 'Resumen',       icon: '📊' },
-  { id: 'ordenes',   label: 'Ordenes',       icon: '📦' },
-  { id: 'productos', label: 'Productos',     icon: '🏷️' },
-  { id: 'items',     label: 'Precios/Envio', icon: '💰' },
-  { id: 'geo',       label: 'Geo',           icon: '🌎' },
-  { id: 'sensores',  label: 'Sensores',      icon: '🌡️' },
-  { id: 'datos',     label: 'Datos',         icon: '🗄️' },
+  { id: 'resumen', label: 'Resumen', icon: '📊' },
+  { id: 'ordenes', label: 'Ordenes', icon: '📦' },
+  { id: 'productos', label: 'Productos', icon: '🏷️' },
+  { id: 'items', label: 'Precios/Envio', icon: '💰' },
+  { id: 'geo', label: 'Geo', icon: '🌎' },
+  { id: 'sensores', label: 'Sensores', icon: '🌡️' },
+  { id: 'datos', label: 'Datos', icon: '🗄️' },
 ]
 
 const ENDPOINTS = {
-  resumen:   '/api/datos/resumen',
-  sensores:  '/api/datos/sensores',
-  datos:     '/api/datos?limite=200',
-  ordenes:   '/api/analytics/ordenes',
+  resumen: '/api/datos/resumen',
+  sensores: '/api/datos/sensores',
+  datos: '/api/datos?limite=200',
+  ordenes: '/api/analytics/ordenes',
   productos: '/api/analytics/productos',
-  items:     '/api/analytics/items',
-  geo:       '/api/analytics/geo',
+  items: '/api/analytics/items',
+  geo: '/api/analytics/geo',
 }
 
 function App() {
@@ -91,14 +91,14 @@ function App() {
       {isLoading
         ? <div className="loading"><div className="loading__spinner" /><span className="loading__text">Cargando datos...</span></div>
         : <>
-            {tab === 'resumen'   && <ResumenView data={data.resumen} />}
-            {tab === 'ordenes'   && <OrdenesView data={data.ordenes} />}
-            {tab === 'productos' && <ProductosView data={data.productos} />}
-            {tab === 'items'     && <ItemsView data={data.items} />}
-            {tab === 'geo'       && <GeoView data={data.geo} />}
-            {tab === 'sensores'  && <SensoresView data={data.sensores} />}
-            {tab === 'datos'     && <DatosView data={data.datos} />}
-          </>
+          {tab === 'resumen' && <ResumenView data={data.resumen} />}
+          {tab === 'ordenes' && <OrdenesView data={data.ordenes} />}
+          {tab === 'productos' && <ProductosView data={data.productos} />}
+          {tab === 'items' && <ItemsView data={data.items} />}
+          {tab === 'geo' && <GeoView data={data.geo} />}
+          {tab === 'sensores' && <SensoresView data={data.sensores} />}
+          {tab === 'datos' && <DatosView data={data.datos} />}
+        </>
       }
     </div>
   )
