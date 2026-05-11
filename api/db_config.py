@@ -8,6 +8,7 @@ import psycopg2
 from dotenv import load_dotenv
 
 # Cargar variables desde .env (busca en el directorio del script)
+# Variables
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 db_port_env = os.getenv("DB_PORT")
