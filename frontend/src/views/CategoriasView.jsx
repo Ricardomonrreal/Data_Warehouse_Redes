@@ -66,15 +66,13 @@ export default function CategoriasView({ data }) {
             const raw = item.raw;
             if (!raw || !raw._data) return '';
             
-            // Si es un nodo agrupador (la categoría entera)
-            if (raw._data.children) {
-              return `${metric === 'revenue' ? 'Margen Total: $' : 'Unidades Totales: '}${raw.v.toLocaleString()}`;
+            // Si tiene 'id', es un nodo de producto individual
+            if (raw._data.id) {
+              return `ID Producto: ${raw._data.id} | ${metric === 'revenue' ? 'Margen: $' : 'Unidades: '}${raw.v.toLocaleString()}`;
             }
             
-            // Si es un nodo de producto individual
-            const productId = raw._data.id || 'Desconocido';
-            
-            return `ID Producto: ${productId} | ${metric === 'revenue' ? 'Margen: $' : 'Unidades: '}${raw.v.toLocaleString()}`;
+            // Si no tiene 'id', es el nodo agrupador de toda la categoría
+            return `${metric === 'revenue' ? 'Margen Categoría: $' : 'Unidades Categoría: '}${raw.v.toLocaleString()}`;
           }
         }
       }
