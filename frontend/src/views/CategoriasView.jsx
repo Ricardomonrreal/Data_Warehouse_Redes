@@ -36,13 +36,7 @@ export default function CategoriasView({ data }) {
         return colorMap[catName] || 'rgba(59, 130, 246, 0.5)';
       },
       labels: {
-        display: true,
-        formatter: (ctx) => {
-          if (ctx.type !== 'data') return '';
-          return [ctx.raw._data.id.substring(0, 8), `${metric === 'revenue' ? '$' : ''}${ctx.raw.v.toLocaleString()}`];
-        },
-        color: '#FFFFFF',
-        font: { family: 'Inter', size: 10 }
+        display: false
       },
       captions: {
         display: true,
@@ -71,7 +65,17 @@ export default function CategoriasView({ data }) {
           label: (item) => {
             const raw = item.raw;
             if (!raw || !raw._data) return '';
-            return `ID: ${raw._data.id} | ${metric === 'revenue' ? 'Ingreso: $' : 'Ventas: '}${raw.v.toLocaleString()}`;
+            
+            // Si es un nodo agrupador (la categoría entera)
+            if (raw._data.children) {
+              return `${metric === 'revenue' ? 'Ingreso Total: $' : 'Ventas Totales: '}${raw.v.toLocaleString()}`;
+            }
+            
+            // Si es un nodo de producto individual
+            const productId = raw._data.id || 'Desconocido';
+            const shortId = productId.substring(0, 8).toUpperCase();
+            
+            return `Producto: ${shortId} | ${metric === 'revenue' ? 'Ingreso: $' : 'Ventas: '}${raw.v.toLocaleString()}`;
           }
         }
       }
