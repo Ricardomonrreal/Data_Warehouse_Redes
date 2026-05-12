@@ -27,6 +27,13 @@ export default function ResumenView({ data }) {
 
   return (
     <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#FFFFFF', fontWeight: 600, letterSpacing: '-0.5px' }}>Panel Principal</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-panel)', padding: '8px 16px', borderRadius: '30px', border: '1px solid var(--border-color)' }}>
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-green)', boxShadow: '0 0 10px var(--accent-green)' }}></div>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Supabase Online</span>
+        </div>
+      </div>
       <div className="stats-grid">
         <StatCard value={data.total} label="Total registros" color="blue" />
         <StatCard value={data.por_origen?.TCP || 0} label="Registros TCP" color="cyan" />

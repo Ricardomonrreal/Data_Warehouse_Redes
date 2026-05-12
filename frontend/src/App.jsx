@@ -45,9 +45,9 @@ function App() {
   const [error, setError] = useState(null)
   const [loadingTab, setLoadingTab] = useState(null)
 
-  const loadTab = useCallback(async (tabId) => {
-    if (data[tabId]) return
-    setLoadingTab(tabId)
+  const loadTab = useCallback(async (tabId, force = false) => {
+    if (!force && data[tabId]) return
+    if (!force) setLoadingTab(tabId)
     try {
       const url = ENDPOINTS[tabId]
       if (!url) return
@@ -68,11 +68,22 @@ function App() {
       setError('Connection error: ' + err.message)
       console.error(err)
     } finally {
-      setLoadingTab(null)
+      if (!force) setLoadingTab(null)
     }
   }, [data])
 
-  useEffect(() => { loadTab(tab) }, [tab])
+  useEffect(() => { loadTab(tab) }, [tab, loadTab])
+
+  // Polling automático para la pestaña de sensores
+  useEffect(() => {
+    let interval;
+    if (tab === 'sensores') {
+      interval = setInterval(() => {
+        loadTab('sensores', true);
+      }, 2500); // Actualización cada 2.5 segundos
+    }
+    return () => clearInterval(interval);
+  }, [tab, loadTab]);
 
   const isLoading = loadingTab === tab && !data[tab]
 

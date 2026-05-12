@@ -21,6 +21,13 @@ export default function SensoresView({ data }) {
 
   return (
     <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ margin: 0, fontSize: '1.6rem', color: '#FFFFFF', fontWeight: 600, letterSpacing: '-0.5px' }}>Telemetría de Sensores</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(56, 189, 248, 0.1)', padding: '6px 14px', borderRadius: '30px', border: '1px solid rgba(56, 189, 248, 0.3)', color: '#38bdf8' }}>
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v8l9-11h-7z" /></svg>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Live Updates</span>
+        </div>
+      </div>
       <div className="chart-section">
         <div className="chart-card">
           <div className="chart-card__title">Promedio por Tipo</div>
