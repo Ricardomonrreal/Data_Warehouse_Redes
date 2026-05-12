@@ -3,11 +3,12 @@ import {
   PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler,
   ScatterController,
 } from 'chart.js'
+import { TreemapController, TreemapElement } from 'chartjs-chart-treemap'
 
 ChartJS.register(
   CategoryScale, LinearScale, BarElement, PointElement,
   LineElement, ArcElement, Title, Tooltip, Legend, Filler,
-  ScatterController
+  ScatterController, TreemapController, TreemapElement
 )
 
 export const CHART_COLORS = {

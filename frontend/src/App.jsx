@@ -4,6 +4,7 @@ import ResumenView from './views/ResumenView'
 import GeoView from './views/GeoView'
 import SensoresView from './views/SensoresView'
 import DatosView from './views/DatosView'
+import CategoriasView from './views/CategoriasView'
 
 const API_BASE = '';
 
@@ -13,12 +14,16 @@ const TABS = [
     icon: <svg className="sidebar__icon" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
   },
   { 
-    id: 'geo', label: 'Geo Analytics', 
+    id: 'geo', label: 'Análisis Regional', 
     icon: <svg className="sidebar__icon" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
   },
   { 
     id: 'sensores', label: 'Sensors Data', 
     icon: <svg className="sidebar__icon" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+  },
+  { 
+    id: 'categorias', label: 'Categorías (Ingresos)', 
+    icon: <svg className="sidebar__icon" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
   },
   { 
     id: 'datos', label: 'Data Tables', 
@@ -31,6 +36,7 @@ const ENDPOINTS = {
   sensores: '/api/datos/sensores',
   datos: '/api/datos?limite=200',
   geo: '/api/analytics/geo',
+  categorias: '/api/analytics/categories',
 }
 
 function App() {
@@ -99,15 +105,6 @@ function App() {
 
       {/* Main Content */}
       <main className="main-content">
-        <header className="top-header">
-          <div className="top-header__search">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="var(--text-secondary)" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input type="text" placeholder="Search..." />
-          </div>
-        </header>
-
         <div className="page-content">
           {error ? (
             <div style={{ color: 'var(--accent-red)', padding: '20px' }}>{error}</div>
@@ -117,6 +114,7 @@ function App() {
             <>
               {tab === 'resumen' && <ResumenView data={data.resumen} />}
               {tab === 'geo' && <GeoView data={data.geo} />}
+              {tab === 'categorias' && <CategoriasView data={data.categorias} />}
               {tab === 'sensores' && <SensoresView data={data.sensores} />}
               {tab === 'datos' && <DatosView data={data.datos} />}
             </>

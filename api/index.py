@@ -280,6 +280,55 @@ def analytics_geo():
         "top_estados": top_estados, "top_ciudades": top_ciudades, "ciudades_mapa": ciudades_mapa, "estados_mapa": estados_mapa,
     })
 
+# ---------------------------------------------------------------------------
+# Endpoint: Analytics de Categorias (Para Treemap)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/analytics/categories", methods=["GET"])
+def analytics_categories():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT t.product_category_name_english, SUM(oi.price) as revenue, COUNT(oi.product_id) as sales
+        FROM olist_order_items oi
+        JOIN olist_products p ON oi.product_id = p.product_id
+        JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
+        GROUP BY t.product_category_name_english
+        ORDER BY revenue DESC
+        LIMIT 10
+    """)
+    top_categorias = [{"category": r[0], "revenue": float(r[1]), "sales": r[2]} for r in cur.fetchall()]
+
+    cur.execute("""
+        WITH TopCat AS (
+            SELECT t.product_category_name_english
+            FROM olist_order_items oi
+            JOIN olist_products p ON oi.product_id = p.product_id
+            JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
+            GROUP BY t.product_category_name_english
+            ORDER BY SUM(oi.price) DESC
+            LIMIT 10
+        )
+        SELECT p.product_id, t.product_category_name_english, COUNT(oi.product_id) as sales, SUM(oi.price) as revenue
+        FROM olist_order_items oi
+        JOIN olist_products p ON oi.product_id = p.product_id
+        JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
+        JOIN TopCat tc ON tc.product_category_name_english = t.product_category_name_english
+        GROUP BY p.product_id, t.product_category_name_english
+        ORDER BY revenue DESC
+        LIMIT 300
+    """)
+    top_productos = [{"id": r[0], "category": r[1], "sales": r[2], "revenue": float(r[3])} for r in cur.fetchall()]
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "top_categorias": top_categorias,
+        "top_productos": top_productos
+    })
+
 
 if __name__ == "__main__":
     print("=" * 55)
