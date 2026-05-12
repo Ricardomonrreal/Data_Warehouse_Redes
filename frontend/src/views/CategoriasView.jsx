@@ -68,14 +68,13 @@ export default function CategoriasView({ data }) {
             
             // Si es un nodo agrupador (la categoría entera)
             if (raw._data.children) {
-              return `${metric === 'revenue' ? 'Ingreso Total: $' : 'Ventas Totales: '}${raw.v.toLocaleString()}`;
+              return `${metric === 'revenue' ? 'Margen Total: $' : 'Unidades Totales: '}${raw.v.toLocaleString()}`;
             }
             
             // Si es un nodo de producto individual
             const productId = raw._data.id || 'Desconocido';
-            const shortId = productId.substring(0, 8).toUpperCase();
             
-            return `Producto: ${shortId} | ${metric === 'revenue' ? 'Ingreso: $' : 'Ventas: '}${raw.v.toLocaleString()}`;
+            return `ID Producto: ${productId} | ${metric === 'revenue' ? 'Margen: $' : 'Unidades: '}${raw.v.toLocaleString()}`;
           }
         }
       }
@@ -85,10 +84,10 @@ export default function CategoriasView({ data }) {
   return (
     <>
       <div className="stats-grid">
-        <StatCard value={`$${totalRevenue.toLocaleString()}`} label="Top 10 Ingresos Netos" color="blue" />
+        <StatCard value={`$${totalRevenue.toLocaleString()}`} label="Ganancia Total (Top 10)" color="blue" />
         <StatCard value={topCategorias.length} label="Categorías Principales" color="emerald" />
-        <StatCard value={mainCategory.category || '-'} label="Categoría Top" color="amber" />
-        <StatCard value={`$${(mainCategory.revenue || 0).toLocaleString()}`} label="Ingreso Categoría Top" color="cyan" />
+        <StatCard value={mainCategory.category || '-'} label="Categoría Líder" color="amber" />
+        <StatCard value={`$${(mainCategory.revenue || 0).toLocaleString()}`} label="Margen Categoría Líder" color="cyan" />
       </div>
 
       <div className="chart-section" style={{ gridTemplateColumns: '1fr' }}>
@@ -101,7 +100,7 @@ export default function CategoriasView({ data }) {
                 style={{ cursor: 'pointer', border: '1px solid var(--border-color)', background: metric === 'revenue' ? 'var(--accent-blue)' : 'transparent', color: metric === 'revenue' ? 'white' : 'var(--text-secondary)' }}
                 onClick={() => setMetric('revenue')}
               >
-                Por Ingresos
+                Por Margen
               </button>
               <button 
                 className="badge"
