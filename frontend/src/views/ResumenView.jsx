@@ -20,8 +20,8 @@ export default function ResumenView({ data }) {
   const timeData = {
     labels: tLabels,
     datasets: [
-      { label: 'TCP', data: tLabels.map(k => tg[k].TCP), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', fill: true, tension: 0.4, pointRadius: 2 },
-      { label: 'UDP', data: tLabels.map(k => tg[k].UDP), borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.1)', fill: true, tension: 0.4, pointRadius: 2 },
+      { label: 'TCP', data: tLabels.map(k => tg[k].TCP), backgroundColor: '#3b82f6', borderRadius: 4 },
+      { label: 'UDP', data: tLabels.map(k => tg[k].UDP), backgroundColor: '#a855f7', borderRadius: 4 },
     ],
   }
 
@@ -46,8 +46,21 @@ export default function ResumenView({ data }) {
           <div className="chart-wrapper"><Doughnut data={origenData} options={{ responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20 } } } }} /></div>
         </div>
         <div className="chart-card">
-          <div className="chart-card__title">Timeline de Ingesta</div>
-          <div className="chart-wrapper"><Line data={timeData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: defaultLegend }, scales: defaultScales }} /></div>
+          <div className="chart-card__title">Ingesta por Minuto (Barras)</div>
+          <div className="chart-wrapper">
+            <Bar 
+              data={timeData} 
+              options={{ 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: defaultLegend }, 
+                scales: { 
+                  x: { stacked: true, ticks: { color: '#94a3b8' }, grid: { display: false } }, 
+                  y: { stacked: true, ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.06)' } } 
+                } 
+              }} 
+            />
+          </div>
         </div>
       </div>
     </>
