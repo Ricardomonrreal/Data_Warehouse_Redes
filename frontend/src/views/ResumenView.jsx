@@ -28,18 +28,18 @@ export default function ResumenView({ data }) {
   return (
     <>
       <div className="stats-grid">
-        <StatCard icon="📊" value={data.total} label="Total registros" color="blue" delay={1} />
-        <StatCard icon="🔗" value={data.por_origen?.TCP || 0} label="Registros TCP" color="cyan" delay={2} />
-        <StatCard icon="📡" value={data.por_origen?.UDP || 0} label="Registros UDP" color="emerald" delay={3} />
-        <StatCard icon="🕐" value={data.fecha_inicio ? new Date(data.fecha_inicio).toLocaleTimeString() : '-'} label="Primera insercion" color="amber" delay={4} />
+        <StatCard value={data.total} label="Total registros" color="blue" />
+        <StatCard value={data.por_origen?.TCP || 0} label="Registros TCP" color="cyan" />
+        <StatCard value={data.por_origen?.UDP || 0} label="Registros UDP" color="emerald" />
+        <StatCard value={data.fecha_inicio ? new Date(data.fecha_inicio).toLocaleTimeString() : '-'} label="Primera inserción" color="amber" />
       </div>
       <div className="chart-section">
         <div className="chart-card">
-          <div className="chart-card__title"><span className="chart-card__title-icon">🍩</span>Distribucion por Origen</div>
+          <div className="chart-card__title">Distribución por Origen</div>
           <div className="chart-wrapper"><Doughnut data={origenData} options={{ responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 20 } } } }} /></div>
         </div>
         <div className="chart-card">
-          <div className="chart-card__title"><span className="chart-card__title-icon">📈</span>Timeline de Ingesta</div>
+          <div className="chart-card__title">Timeline de Ingesta</div>
           <div className="chart-wrapper"><Line data={timeData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: defaultLegend }, scales: defaultScales }} /></div>
         </div>
       </div>

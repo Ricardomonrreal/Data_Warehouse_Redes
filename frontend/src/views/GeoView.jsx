@@ -16,16 +16,16 @@ export default function GeoView({ data }) {
   return (
     <>
       <div className="stats-grid">
-        <StatCard icon="🌎" value={data.total_registros?.toLocaleString()} label="Total Órdenes" color="blue" delay={1} />
-        <StatCard icon="🏙️" value={data.total_ciudades?.toLocaleString()} label="Ciudades Únicas" color="emerald" delay={2} />
-        <StatCard icon="🏆" value={ciudadPrincipal.toUpperCase()} label="Ciudad Principal" color="amber" delay={3} />
-        <StatCard icon="📈" value={topCiudadesList[0]?.count?.toLocaleString() || '0'} label="Órdenes en Top Ciudad" color="cyan" delay={4} />
+        <StatCard value={data.total_registros?.toLocaleString()} label="Total Órdenes" color="blue" />
+        <StatCard value={data.total_ciudades?.toLocaleString()} label="Ciudades Únicas" color="emerald" />
+        <StatCard value={ciudadPrincipal.toUpperCase()} label="Ciudad Principal" color="amber" />
+        <StatCard value={topCiudadesList[0]?.count?.toLocaleString() || '0'} label="Órdenes en Top Ciudad" color="cyan" />
       </div>
 
-      <div className="table-section fade-in" style={{ marginBottom: '24px' }}>
+      <div className="table-section" style={{ marginBottom: '24px' }}>
         <div className="table-header">
-          <div className="table-header__title" style={{ fontSize: '1.2rem', color: '#e2e8f0' }}>
-            ❓ ¿En qué ciudades existe mayor cantidad de registros de órdenes?
+          <div className="table-header__title" style={{ fontSize: '1.1rem', color: '#FFFFFF' }}>
+            ¿En qué ciudades existe mayor cantidad de registros de órdenes?
           </div>
         </div>
         <div className="table-container">
@@ -43,15 +43,15 @@ export default function GeoView({ data }) {
                 const pct = ((c.count / (topCiudadesList[0]?.count || 1)) * 100).toFixed(1);
                 return (
                   <tr key={i}>
-                    <td style={{ fontWeight: 'bold', color: i < 3 ? '#fbbf24' : '#94a3b8' }}>#{i + 1}</td>
+                    <td style={{ fontWeight: 'bold', color: i < 3 ? '#fbbf24' : '#A1A1AA' }}>#{i + 1}</td>
                     <td><span className="badge badge--tcp" style={{ textTransform: 'capitalize', fontSize: '0.95rem' }}>{c.city}</span></td>
-                    <td style={{ fontWeight: 'bold', color: '#e2e8f0', fontSize: '1.05rem' }}>{c.count.toLocaleString()}</td>
+                    <td style={{ fontWeight: 'bold', color: '#FFFFFF', fontSize: '1.05rem' }}>{c.count.toLocaleString()}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ flex: 1, height: '8px', background: '#334155', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, height: '6px', background: '#27272A', borderRadius: '4px', overflow: 'hidden' }}>
                           <div style={{ width: `${pct}%`, height: '100%', background: i === 0 ? '#fbbf24' : '#38bdf8', borderRadius: '4px' }}></div>
                         </div>
-                        <span style={{ fontSize: '12px', color: '#94a3b8', width: '45px', textAlign: 'right' }}>{pct}%</span>
+                        <span style={{ fontSize: '12px', color: '#A1A1AA', width: '45px', textAlign: 'right' }}>{pct}%</span>
                       </div>
                     </td>
                   </tr>
@@ -63,11 +63,11 @@ export default function GeoView({ data }) {
       </div>
 
       <div className="chart-section" style={{ gridTemplateColumns: '1fr' }}>
-        <div className="chart-card fade-in">
+        <div className="chart-card">
           <div className="chart-card__title" style={{ marginBottom: '16px' }}>
-            <span className="chart-card__title-icon">🗺️</span>Mapa de Calor de Órdenes
+            Mapa de Calor de Órdenes
           </div>
-          <div style={{ height: '500px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(148, 163, 184, 0.1)' }}>
+          <div style={{ height: '500px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <MapContainer center={[-14.235, -51.925]} zoom={4} style={{ height: '100%', width: '100%', background: '#0f172a' }}>
               <TileLayer
                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"

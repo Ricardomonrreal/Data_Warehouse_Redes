@@ -4,9 +4,9 @@ export default function DatosView({ data }) {
   if (!data) return <Loading />
 
   return (
-    <div className="table-section fade-in">
+    <div className="table-section">
       <div className="table-header">
-        <div className="table-header__title">🗄️ Datos Crudos del Warehouse <span className="table-header__count">{data.total}</span></div>
+        <div className="table-header__title">Datos Crudos del Warehouse <span style={{marginLeft: '10px', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>{data.total} registros</span></div>
       </div>
       <div className="table-container">
         <table className="data-table">
