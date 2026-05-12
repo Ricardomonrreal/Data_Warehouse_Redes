@@ -1,29 +1,17 @@
-import { Bar } from 'react-chartjs-2'
+import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 import { StatCard, Loading, PALETTE } from '../chartSetup'
 
 export default function GeoView({ data }) {
   if (!data) return <Loading />
 
-  const topEstadosList = data.top_estados || [];
-  const estLabels = topEstadosList.map(e => e.state);
-  const estData = {
-    labels: estLabels,
-    datasets: [{ label: 'Órdenes', data: topEstadosList.map(e => e.count), backgroundColor: PALETTE.slice(0, Math.max(estLabels.length, 1)), borderRadius: 6 }],
-  }
-
-  const top15Ciudades = (data.top_ciudades || []).slice(0, 15);
-  const cityLabels = top15Ciudades.map(c => c.city);
-  const cityData = {
-    labels: cityLabels,
-    datasets: [{ label: 'Órdenes', data: top15Ciudades.map(c => c.count), backgroundColor: 'rgba(34,211,238,0.7)', borderRadius: 6 }],
-  }
-
-  const barOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.06)' } } } }
-  const hBarOpts = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.06)' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } } } }
-
   // Top 10 ciudades para responder a la pregunta principal
   const topCiudadesList = (data.top_ciudades || []).slice(0, 10);
   const ciudadPrincipal = topCiudadesList[0]?.city || '-';
+  
+  // Datos del mapa
+  const ciudadesMapa = data.ciudades_mapa || [];
+  const maxCount = ciudadesMapa.length > 0 ? Math.max(...ciudadesMapa.map(c => c.count)) : 1;
 
   return (
     <>
@@ -52,8 +40,7 @@ export default function GeoView({ data }) {
             </thead>
             <tbody>
               {topCiudadesList.map((c, i) => {
-                const maxCount = topCiudadesList[0]?.count || 1;
-                const pct = ((c.count / maxCount) * 100).toFixed(1);
+                const pct = ((c.count / (topCiudadesList[0]?.count || 1)) * 100).toFixed(1);
                 return (
                   <tr key={i}>
                     <td style={{ fontWeight: 'bold', color: i < 3 ? '#fbbf24' : '#94a3b8' }}>#{i + 1}</td>
@@ -75,14 +62,42 @@ export default function GeoView({ data }) {
         </div>
       </div>
 
-      <div className="chart-section">
-        <div className="chart-card">
-          <div className="chart-card__title"><span className="chart-card__title-icon">🏙️</span>Top 15 Ciudades (Gráfico)</div>
-          <div className="chart-wrapper" style={{ height: '380px' }}><Bar data={cityData} options={hBarOpts} /></div>
-        </div>
-        <div className="chart-card">
-          <div className="chart-card__title"><span className="chart-card__title-icon">🗺️</span>Distribución por Estado</div>
-          <div className="chart-wrapper" style={{ height: '380px' }}><Bar data={estData} options={barOpts} /></div>
+      <div className="chart-section" style={{ gridTemplateColumns: '1fr' }}>
+        <div className="chart-card fade-in">
+          <div className="chart-card__title" style={{ marginBottom: '16px' }}>
+            <span className="chart-card__title-icon">🗺️</span>Mapa de Calor de Órdenes
+          </div>
+          <div style={{ height: '500px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(148, 163, 184, 0.1)' }}>
+            <MapContainer center={[-14.235, -51.925]} zoom={4} style={{ height: '100%', width: '100%', background: '#0f172a' }}>
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              />
+              {ciudadesMapa.map((c, i) => {
+                const intensidad = c.count / maxCount;
+                const radius = Math.max(5, intensidad * 35);
+                const color = intensidad > 0.5 ? '#fbbf24' : intensidad > 0.1 ? '#38bdf8' : '#818cf8';
+                return (
+                  <CircleMarker
+                    key={i}
+                    center={[c.lat, c.lng]}
+                    radius={radius}
+                    fillOpacity={Math.max(0.4, intensidad)}
+                    color={color}
+                    fillColor={color}
+                    weight={1}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} opacity={1}>
+                      <div style={{ padding: '4px' }}>
+                        <div style={{ fontWeight: 'bold', textTransform: 'capitalize', color: '#0f172a' }}>{c.city}</div>
+                        <div style={{ color: '#334155' }}>{c.count.toLocaleString()} órdenes</div>
+                      </div>
+                    </Tooltip>
+                  </CircleMarker>
+                )
+              })}
+            </MapContainer>
+          </div>
         </div>
       </div>
     </>

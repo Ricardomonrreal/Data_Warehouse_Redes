@@ -248,12 +248,21 @@ def analytics_geo():
     top_ciudades = [{"city": r[0], "count": r[1]} for r in cur.fetchall()]
 
     cur.execute("""
-        SELECT geolocation_lat, geolocation_lng, geolocation_city, geolocation_state
-        FROM olist_geolocation
-        TABLESAMPLE SYSTEM(1)
-        LIMIT 200
+        WITH top_cities AS (
+            SELECT customer_city, COUNT(*) as c 
+            FROM olist_customers 
+            WHERE customer_city IS NOT NULL 
+            GROUP BY customer_city ORDER BY c DESC LIMIT 100
+        )
+        SELECT tc.customer_city, tc.c,
+               (SELECT geolocation_lat FROM olist_geolocation WHERE geolocation_city = tc.customer_city LIMIT 1) as lat,
+               (SELECT geolocation_lng FROM olist_geolocation WHERE geolocation_city = tc.customer_city LIMIT 1) as lng
+        FROM top_cities tc
     """)
-    puntos_mapa = [{"lat": float(r[0]), "lng": float(r[1]), "city": r[2], "state": r[3]} for r in cur.fetchall()]
+    ciudades_mapa = []
+    for r in cur.fetchall():
+        if r[2] is not None and r[3] is not None:
+            ciudades_mapa.append({"city": r[0], "count": r[1], "lat": float(r[2]), "lng": float(r[3])})
 
     cur.execute("""
         SELECT geolocation_state, AVG(geolocation_lat), AVG(geolocation_lng), COUNT(*) as c
@@ -268,7 +277,7 @@ def analytics_geo():
 
     return jsonify({
         "total_registros": total_registros, "total_estados": total_estados, "total_ciudades": total_ciudades,
-        "top_estados": top_estados, "top_ciudades": top_ciudades, "puntos_mapa": puntos_mapa, "estados_mapa": estados_mapa,
+        "top_estados": top_estados, "top_ciudades": top_ciudades, "ciudades_mapa": ciudades_mapa, "estados_mapa": estados_mapa,
     })
 
 

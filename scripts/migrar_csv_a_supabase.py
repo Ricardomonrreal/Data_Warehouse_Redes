@@ -188,6 +188,122 @@ def importar_traducciones(conn):
     conn.commit()
     print(f"[OK] product_category_translation importado ({len(data)} filas)")
 
+def importar_clientes(conn):
+    print("Migrando olist_customers...")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS olist_customers (
+            customer_id VARCHAR PRIMARY KEY,
+            customer_unique_id VARCHAR,
+            customer_zip_code_prefix VARCHAR,
+            customer_city VARCHAR,
+            customer_state VARCHAR
+        );
+        TRUNCATE TABLE olist_customers;
+    """)
+    
+    filepath = os.path.join(DATA_DIR, "olist_customers_dataset.csv")
+    with open(filepath, "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        next(reader)
+        data = []
+        for row in reader:
+            data.append((
+                nullify(row[0]), nullify(row[1]), nullify(row[2]),
+                nullify(row[3]), nullify(row[4])
+            ))
+            
+    execute_values(cur, "INSERT INTO olist_customers VALUES %s", data, page_size=10000)
+    conn.commit()
+    print(f"[OK] olist_customers importado ({len(data)} filas)")
+
+def importar_pagos(conn):
+    print("Migrando olist_order_payments...")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS olist_order_payments (
+            order_id VARCHAR,
+            payment_sequential INT,
+            payment_type VARCHAR,
+            payment_installments INT,
+            payment_value FLOAT
+        );
+        TRUNCATE TABLE olist_order_payments;
+    """)
+    
+    filepath = os.path.join(DATA_DIR, "olist_order_payments_dataset.csv")
+    with open(filepath, "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        next(reader)
+        data = []
+        for row in reader:
+            data.append((
+                nullify(row[0]), nullify_int(row[1]), nullify(row[2]),
+                nullify_int(row[3]), nullify_float(row[4])
+            ))
+            
+    execute_values(cur, "INSERT INTO olist_order_payments VALUES %s", data, page_size=10000)
+    conn.commit()
+    print(f"[OK] olist_order_payments importado ({len(data)} filas)")
+
+def importar_reviews(conn):
+    print("Migrando olist_order_reviews...")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS olist_order_reviews (
+            review_id VARCHAR,
+            order_id VARCHAR,
+            review_score INT,
+            review_comment_title TEXT,
+            review_comment_message TEXT,
+            review_creation_date TIMESTAMP,
+            review_answer_timestamp TIMESTAMP
+        );
+        TRUNCATE TABLE olist_order_reviews;
+    """)
+    
+    filepath = os.path.join(DATA_DIR, "olist_order_reviews_dataset.csv")
+    with open(filepath, "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        next(reader)
+        data = []
+        for row in reader:
+            data.append((
+                nullify(row[0]), nullify(row[1]), nullify_int(row[2]),
+                nullify(row[3]), nullify(row[4]), nullify(row[5]), nullify(row[6])
+            ))
+            
+    execute_values(cur, "INSERT INTO olist_order_reviews VALUES %s", data, page_size=5000)
+    conn.commit()
+    print(f"[OK] olist_order_reviews importado ({len(data)} filas)")
+
+def importar_vendedores(conn):
+    print("Migrando olist_sellers...")
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS olist_sellers (
+            seller_id VARCHAR PRIMARY KEY,
+            seller_zip_code_prefix VARCHAR,
+            seller_city VARCHAR,
+            seller_state VARCHAR
+        );
+        TRUNCATE TABLE olist_sellers;
+    """)
+    
+    filepath = os.path.join(DATA_DIR, "olist_sellers_dataset.csv")
+    with open(filepath, "r", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        next(reader)
+        data = []
+        for row in reader:
+            data.append((
+                nullify(row[0]), nullify(row[1]), nullify(row[2]), nullify(row[3])
+            ))
+            
+    execute_values(cur, "INSERT INTO olist_sellers VALUES %s", data, page_size=10000)
+    conn.commit()
+    print(f"[OK] olist_sellers importado ({len(data)} filas)")
+
 def main():
     print("=" * 60)
     print(" Migrador de CSV a PostgreSQL (Supabase)")
@@ -199,6 +315,10 @@ def main():
         importar_items(conn)
         importar_geo(conn)
         importar_traducciones(conn)
+        importar_clientes(conn)
+        importar_pagos(conn)
+        importar_reviews(conn)
+        importar_vendedores(conn)
         conn.close()
         print("\n[INFO] Todos los datos han sido migrados exitosamente a Supabase!")
         print("Ya puedes desplegar a Vercel tranquilamente. La API ahora consultara la base de datos.")
