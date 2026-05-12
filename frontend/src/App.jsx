@@ -75,10 +75,13 @@ function App() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar__logo">
-          <svg className="sidebar__logo-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-          </svg>
-          HelpDesk
+          <img 
+              src="/brasil.png" 
+              alt="Logo" 
+              className="sidebar__logo-icon" 
+              style={{ width: '40px', height: '40px', objectFit: 'contain' }} 
+            />
+            <span>Data Warehouse Brazil</span>
         </div>
         <nav className="sidebar__nav">
           {TABS.map(t => (
@@ -102,12 +105,6 @@ function App() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input type="text" placeholder="Search..." />
-          </div>
-          <div className="top-header__actions">
-            <div className="top-header__profile">
-              <div className="top-header__avatar">R</div>
-              Ricardo M.
-            </div>
           </div>
         </header>
 
