@@ -13,8 +13,8 @@ import json
 import sys
 import os
 
-# Agregar el directorio actual al path para importar db_config
-sys.path.insert(0, os.path.dirname(__file__))
+# Agregar el directorio api al path para importar db_config
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "api"))
 from db_config import insertar_dato, init_table
 
 # Configuracion del servidor

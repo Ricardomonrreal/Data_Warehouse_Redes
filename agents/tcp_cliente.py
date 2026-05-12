@@ -13,7 +13,7 @@ import sys
 # Configuracion
 SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 12000
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "api", "data")
 
 # Archivos CSV a enviar (los mas relevantes para el warehouse)
 CSV_FILES = [
