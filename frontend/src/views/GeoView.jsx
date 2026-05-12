@@ -4,32 +4,34 @@ import { StatCard, Loading, PALETTE } from '../chartSetup'
 export default function GeoView({ data }) {
   if (!data) return <Loading />
 
-  const estLabels = Object.keys(data.top_estados)
+  const topEstadosList = data.top_estados || [];
+  const estLabels = topEstadosList.map(e => e.state);
   const estData = {
     labels: estLabels,
-    datasets: [{ label: 'Registros', data: Object.values(data.top_estados), backgroundColor: PALETTE.slice(0, estLabels.length), borderRadius: 6 }],
+    datasets: [{ label: 'Órdenes', data: topEstadosList.map(e => e.count), backgroundColor: PALETTE.slice(0, Math.max(estLabels.length, 1)), borderRadius: 6 }],
   }
 
-  const cityLabels = Object.keys(data.top_ciudades).slice(0, 15)
+  const top15Ciudades = (data.top_ciudades || []).slice(0, 15);
+  const cityLabels = top15Ciudades.map(c => c.city);
   const cityData = {
     labels: cityLabels,
-    datasets: [{ label: 'Registros', data: cityLabels.map(c => data.top_ciudades[c]), backgroundColor: 'rgba(34,211,238,0.7)', borderRadius: 6 }],
+    datasets: [{ label: 'Órdenes', data: top15Ciudades.map(c => c.count), backgroundColor: 'rgba(34,211,238,0.7)', borderRadius: 6 }],
   }
 
   const barOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } }, y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.06)' } } } }
   const hBarOpts = { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.06)' } }, y: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } } } }
 
   // Top 10 ciudades para responder a la pregunta principal
-  const topCiudadesList = Object.entries(data.top_ciudades).slice(0, 10).map(([city, count]) => ({ city, count }));
-  const ciudadPrincipal = cityLabels[0] || '-';
+  const topCiudadesList = (data.top_ciudades || []).slice(0, 10);
+  const ciudadPrincipal = topCiudadesList[0]?.city || '-';
 
   return (
     <>
       <div className="stats-grid">
-        <StatCard icon="🌎" value={data.total_registros?.toLocaleString()} label="Total Registros" color="blue" delay={1} />
+        <StatCard icon="🌎" value={data.total_registros?.toLocaleString()} label="Total Órdenes" color="blue" delay={1} />
         <StatCard icon="🏙️" value={data.total_ciudades?.toLocaleString()} label="Ciudades Únicas" color="emerald" delay={2} />
         <StatCard icon="🏆" value={ciudadPrincipal.toUpperCase()} label="Ciudad Principal" color="amber" delay={3} />
-        <StatCard icon="📈" value={data.top_ciudades[ciudadPrincipal]?.toLocaleString() || '0'} label="Órdenes en Top Ciudad" color="cyan" delay={4} />
+        <StatCard icon="📈" value={topCiudadesList[0]?.count?.toLocaleString() || '0'} label="Órdenes en Top Ciudad" color="cyan" delay={4} />
       </div>
 
       <div className="table-section fade-in" style={{ marginBottom: '24px' }}>

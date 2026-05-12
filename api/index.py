@@ -222,30 +222,30 @@ def analytics_geo():
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT COUNT(*) FROM olist_geolocation")
+    cur.execute("SELECT COUNT(*) FROM olist_customers")
     total_registros = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(DISTINCT geolocation_state) FROM olist_geolocation WHERE geolocation_state IS NOT NULL")
+    cur.execute("SELECT COUNT(DISTINCT customer_state) FROM olist_customers WHERE customer_state IS NOT NULL")
     total_estados = cur.fetchone()[0]
 
-    cur.execute("SELECT COUNT(DISTINCT geolocation_city) FROM olist_geolocation WHERE geolocation_city IS NOT NULL")
+    cur.execute("SELECT COUNT(DISTINCT customer_city) FROM olist_customers WHERE customer_city IS NOT NULL")
     total_ciudades = cur.fetchone()[0]
 
     cur.execute("""
-        SELECT geolocation_state, COUNT(*) as c 
-        FROM olist_geolocation 
-        WHERE geolocation_state IS NOT NULL 
-        GROUP BY geolocation_state ORDER BY c DESC LIMIT 15
+        SELECT customer_state, COUNT(*) as c 
+        FROM olist_customers 
+        WHERE customer_state IS NOT NULL 
+        GROUP BY customer_state ORDER BY c DESC LIMIT 15
     """)
-    top_estados = dict(cur.fetchall())
+    top_estados = [{"state": r[0], "count": r[1]} for r in cur.fetchall()]
 
     cur.execute("""
-        SELECT geolocation_city, COUNT(*) as c 
-        FROM olist_geolocation 
-        WHERE geolocation_city IS NOT NULL 
-        GROUP BY geolocation_city ORDER BY c DESC LIMIT 20
+        SELECT customer_city, COUNT(*) as c 
+        FROM olist_customers 
+        WHERE customer_city IS NOT NULL 
+        GROUP BY customer_city ORDER BY c DESC LIMIT 20
     """)
-    top_ciudades = dict(cur.fetchall())
+    top_ciudades = [{"city": r[0], "count": r[1]} for r in cur.fetchall()]
 
     cur.execute("""
         SELECT geolocation_lat, geolocation_lng, geolocation_city, geolocation_state
